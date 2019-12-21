@@ -10,29 +10,29 @@ inindex = open(sys.argv[2],'r')
 libdic = {}
 outdic = {}
 for line in inindex:
-	liner = line.strip().split()
-	libdic[liner[0]] = liner[1]
-	try:
-		outdic[liner[1]]
-	except KeyError:
-		outdic[liner[1]] = pysam.Samfile(sys.argv[3] + "." + liner[1] + sys.argv[4],'wb',template=inbam)
+    liner = line.strip().split()
+    libdic[liner[0]] = liner[1]
+    try:
+        outdic[liner[1]]
+    except KeyError:
+        outdic[liner[1]] = pysam.Samfile(sys.argv[3] + "." + liner[1] + sys.argv[4],'wb',template=inbam)
 
 inindex.close()
 
 readdic = {}
 reads = inbam.fetch()
 for line in reads:
-	try:
-		currlib = libdic[line.qname.split(':')[0]]
-		outdic[currlib].write(line)	
-		try:
-			readdic[currlib] += 1
-		except KeyError:
-			readdic[currlib] = 1
-	except KeyError:
-		continue
+    try:
+        currlib = libdic[line.qname.split(':')[0]]
+        outdic[currlib].write(line)    
+        try:
+            readdic[currlib] += 1
+        except KeyError:
+            readdic[currlib] = 1
+    except KeyError:
+        continue
 
 inbam.close()
 for read in readdic.keys():
-	print read + "\t" + str(readdic[read])
-	outdic[read].close()
+    print(read + "\t" + str(readdic[read]))
+    outdic[read].close()

@@ -11,7 +11,7 @@ for refchrom in refs:
 	if 'chrM' in refchrom or 'chrGL' in refchrom or 'chrNC' in refchrom or 'chrhs' in refchrom or 'random' in refchrom or 'chrU' in refchrom:
 		continue
 	readdic = {}
-	print "Deduplicating " + refchrom + "..."
+	print("Deduplicating " + refchrom + "...")
 	for read in readsin.fetch(refchrom):
 		readname = read.qname.split(':')[0]
 		if 'CTF' in readname or 'AMBIG' in readname:
@@ -23,7 +23,7 @@ for refchrom in refs:
 			fragstart = str(read.pos)
 			fragend = str(read.pos + read.tlen)
 		try:
-			readdic[readname + fragstart + fragend + read.is_read1]
+			readdic[readname + fragstart + fragend + str(read.is_read1)]
 		except KeyError:
-			readdic[readname + fragstart + fragend + read.is_read1] = read
+			readdic[readname + fragstart + fragend + str(read.is_read1)] = read
 			readsout.write(read)

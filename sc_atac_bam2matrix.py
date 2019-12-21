@@ -17,22 +17,40 @@ def submitter(commander):
         submiting.wait()
 
 if args.outdir[-1] != '/':
-	args.outdir = args.outdir + '/'
+    args.outdir = args.outdir + '/'
 
 try:
-	os.makedirs(args.outdir)
+    os.makedirs(args.outdir)
 except OSError:
-	print 'Outdir already exists...'
+    print('Outdir already exists...')
 
-print "Counting reads assigned to barcodes..."
+print("Counting reads assigned to barcodes...")
 scriptdir = os.path.dirname(os.path.abspath(__file__))
-readcounter = 'python ' + scriptdir + '/sc_atac_barcode_read_counter.py ' + args.inbam + ' ' + args.indextable + ' ' + args.outdir + args.prefix + '.readcount.report.txt'
+# readcounter = 'python ' + scriptdir + '/sc_atac_barcode_read_counter.py ' + args.inbam + ' ' + args.indextable + ' ' + args.outdir + args.prefix + '.readcount.report.txt'
+read_rpt = os.path.join(args.outdir, args.prefix + '.readcount.report.txt')
+readcounter = 'python {} {} {} {}'.format(
+	os.path.join(scriptdir, 'sc_atac_barcode_read_counter.py'),
+	args.inbam,
+	args.indextable,
+	read_rpt)
 submitter(readcounter)
 
-print "Determining read depth cutoff..."
-cutoffer = 'Rscript ' + scriptdir + '/sc_atac_cell_cutoff.R ' + args.outdir + args.prefix + ' ' + args.cutoff
+print("Determining read depth cutoff...")
+# cutoffer = 'Rscript ' + scriptdir + '/sc_atac_cell_cutoff.R ' + args.outdir + args.prefix + ' ' + args.cutoff
+cutoffer = '/usr/bin/Rscript {} {} {}'.format(
+	os.path.join(scriptdir, 'sc_atac_cell_cutoff.R'),
+	read_rpt,
+	args.cutoff)
 submitter(cutoffer)
 
-print "Building cell matrix..."
-builder = 'python ' + scriptdir + '/sc_atac_window_counter.py ' + args.inbam + ' ' + args.outdir + args.prefix + '.readdepth.cells.indextable.txt ' + args.windows + ' ' + args.outdir + args.prefix + '.cellmatrix.txt True'
-submitter(builder)
+print("Building cell matrix...")
+# builder = 'python ' + scriptdir + '/sc_atac_window_counter.py ' + args.inbam + ' ' + args.outdir + args.prefix + '.readdepth.cells.indextable.txt ' + args.windows + ' ' + args.outdir + args.prefix + '.cellmatrix.txt True'
+builder = 'python {} {} {} {} {} {}'.format(
+	os.path.join(scriptdir, 'sc_atac_window_counter.py'),
+	args.inbam,
+	os.path.join(scriptdir, '2to4.readdepth.cells.indextable.txt'),
+	args.windows,
+	os.path.join(args.outdir, args.prefix + '.cellmatrix.txt'),
+	'True')
+# submitter(builder)
+print(builder)

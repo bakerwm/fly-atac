@@ -1,5 +1,6 @@
 import argparse
 import os
+import sys
 import subprocess
 
 parser = argparse.ArgumentParser(description='A program to convert NextSeq BCL files to fastq files for scATAC-seq analysis.')
@@ -16,32 +17,53 @@ def submitter(commander):
         submiting.wait()
 
 if args.outdir[-1] != '/':
-	args.outdir = args.outdir + '/'
+    args.outdir = args.outdir + '/'
 
 try:
-	os.makedirs(args.outdir)
+    os.makedirs(args.outdir)
 except OSError:
-	print 'Outdir already exists...'
+    print('Outdir already exists...')
 
-print "Fixing barcodes..."
+print("Fixing barcodes...")
 scriptdir = os.path.dirname(os.path.abspath(__file__))
 splitter = 'python ' + scriptdir + '/sc_atac_10bpbarcode_split.py -1 ' + args.read1 + ' -2 ' + args.read2 + ' -O1 ' + args.outdir + args.prefix + '.split.1.fq -O2 ' + args.outdir + args.prefix + '.split.2.fq -L ' + args.outdir + args.prefix + '.split.log -Z -X'
-
 submitter(splitter)
 
-print "Trimming adapters..."
+print("Trimming adapters...")
 trimmer = 'java -Xmx1G -jar ' + scriptdir + '/trimmomatic-0.32.jar PE ' + args.outdir + args.prefix + '.split.1.fq.gz ' + args.outdir + args.prefix + '.split.2.fq.gz ' + args.outdir + args.prefix + '.split.1.trimmed.paired.fastq.gz ' + args.outdir + args.prefix + '.split.1.trimmed.unpaired.fastq.gz ' + args.outdir + args.prefix + '.split.2.trimmed.paired.fastq.gz ' + args.outdir + args.prefix + '.split.2.trimmed.unpaired.fastq.gz ILLUMINACLIP:' + scriptdir + '/NexteraPE-PE.fa:2:30:10:1:true TRAILING:3 SLIDINGWINDOW:4:10 MINLEN:20 2> ' + args.outdir + args.prefix + '.split.trimmomatic.log'
 submitter(trimmer)
 
-print "Cleaning up..."
+print("Cleaning up...")
 cleaner = 'rm ' + args.outdir + args.prefix + '.split.1.fq.gz; rm ' + args.outdir + args.prefix + '.split.2.fq.gz; rm ' + args.outdir + args.prefix + '.split.1.trimmed.unpaired.fastq.gz; rm ' + args.outdir + args.prefix + '.split.2.trimmed.unpaired.fastq.gz'
 submitter(cleaner)
 
-print "Mapping reads..."
-mapper = "bowtie2 -p 8 -X 2000 -3 1 -x " + args.genome + " -1 $1.split.1.trimmed.paired.fastq.gz -2 $1.split.2.trimmed.paired.fastq.gz 2> $1.split.bowtie2.log | samtools view -bS - > $1.split.bam; samtools view -h -f3 -F12 -q10 $1.split.bam | grep -v '[0-9]'$'\t'chrM | grep -v '[0-9]'$'\t'chrU | grep -v _CTF_ | grep -v _AMBIG_ | samtools view -Su - | samtools sort -@ 8 - $1.split.q10.sort; samtools index $1.split.q10.sort.bam"
+print("Mapping reads...")
+#mapper = "bowtie2 -p 8 -X 2000 -3 1 -x " + args.genome + " -1 $1.split.1.trimmed.paired.fastq.gz -2 $1.split.2.trimmed.paired.fastq.gz 2> $1.split.bowtie2.log | samtools view -bS - > $1.split.bam; samtools view -h -f3 -F12 -q10 $1.split.bam | grep -v '[0-9]'$'\t'chrM | grep -v '[0-9]'$'\t'chrU | grep -v _CTF_ | grep -v _AMBIG_ | samtools view -Su - | samtools sort -@ 8 - $1.split.q10.sort; samtools index $1.split.q10.sort.bam"
+map_prefix=os.path.join(args.outdir, args.prefix)
+mapper = 'bowtie2 -p 8 -X 2000 -3 1 -x {} -1 {} -2 {} 2> {} | \
+samtools view -Sb - > {} ; samtools view -h -f3 -F12 -q10 {} | \
+grep -v {} | grep -v {} | grep -v _CTF_ | grep -v _AMBIG_ | \
+samtools view -Su - | samtools sort -@ 8 -o {} - ; samtools index {}'.format(
+    args.genome,
+    map_prefix + '.split.1.trimmed.paired.fastq.gz',
+    map_prefix + '.split.2.trimmed.paired.fastq.gz',
+    map_prefix + '.split.bowtie2.log',
+    map_prefix + '.split.bam',
+    map_prefix + '.split.bam',
+    "'[0-9]'$'\\t'chrM",
+    "'[0-9]'$'\\t'chrU",
+    map_prefix + '.split.q10.sort.bam',
+    map_prefix + '.split.q10.sort.bam')
 submitter(mapper)
 
-print "Deduplicating reads..."
-dedup = "python " + scriptdir + "/sc_atac_true_dedup.py $1.split.q10.sort.bam $1.true.nodups.bam"
+
+print("Deduplicating reads...")
+# dedup = "python " + scriptdir + "/sc_atac_true_dedup.py $1.split.q10.sort.bam $1.true.nodups.bam"
+dedup = 'python {} {} {}; samtools index {}'.format(
+    os.path.join(scriptdir, 'sc_atac_true_dedup.py'),
+    map_prefix + '.split.q10.sort.bam',
+    map_prefix + '.true.nodups.bam',
+    map_prefix + '.true.nodups.bam')
 submitter(dedup)
+
 
